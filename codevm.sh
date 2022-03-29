@@ -13,17 +13,41 @@ wrong_args () {
     exit 1
 }
 
-get_system_info () {
+eval_system_information () {
     CODEVM_ARCH=$(uname -m)
     CODEVM_OS=$(uname -s)
     CODEVM_OS_LIKE=$(cat /etc/os-release | grep ID_LIKE | grep -o '[a-z]*')
+
+
+    if [[ $CODEVM_OS =~ (Darwin|darwin) ]]; then
+        CODEVM_PACK_ARCH="darwin-universal"
+    else
+        CODEVM_PACK_ARCH="linux"
+
+        if [[ $CODEVM_OS_LIKE =~ (debian|ubuntu|kali) ]]; then
+            CODEVM_PACK_ARCH="$CODEVM_PACK_ARCH-deb"
+        elif [[ $CODEVM_OS_LIKE =~ (redhat|centos|fedora) ]]; then
+            CODEVM_PACK_ARCH="$CODEVM_PACK_ARCH-rpm"
+        fi
+    fi
+
+    if [[ $CODEVM_ARCH =~ (arm|arch) ]]; then
+        CODEVM_PACK_ARCH="$CODEVM_PACK_ARCH-arm64"
+    elif [[ $CODEVM_ARCH =~ (amd64|x86|x86_64|i686|i386|sparc) ]]; then
+        CODEVM_PACK_ARCH="$CODEVM_PACK_ARCH-x64"
+    else
+        CODEVM_PACK_ARCH="$CODEVM_PACK_ARCH-armhf"
+    fi
+
+    # echo "$CODEVM_OS_LIKE"
+    # echo "$CODEVM_PACK_ARCH"
 }
 
 download_package () {
     #  wget -q -O "code_$2_info.json" "https://update.code.visualstudio.com/api/versions/$2/linux-deb-x64/stable"
 
     # wget -q --show-progress -O "code_$CODEVM_PACK_VERSION.deb" -P "$HOME/" "https://update.code.visualstudio.com/$CODEVM_PACK_VERSION/linux-deb-x64/$CODEVM_PACK_BUILD"
-    wget -P "$HOME/vscode_versions" --trust-server-names "https://update.code.visualstudio.com/$CODEVM_PACK_VERSION/linux-deb-x64/$CODEVM_PACK_BUILD"
+    wget -P "$HOME/vscode_versions" --trust-server-names "https://update.code.visualstudio.com/$CODEVM_PACK_VERSION/$CODEVM_PACK_ARCH/$CODEVM_PACK_BUILD"
 
     # echo "Error: Probably wget error"; exit 1; 
 
@@ -31,7 +55,7 @@ download_package () {
 }
 
 install_package () {
-    echo "Installing..."
+    echo "Should be installing..."
 }
 
 is_version_correct () {
@@ -56,12 +80,12 @@ is_version_correct () {
 
 [ $# -lt 1 ] && codevm_help
 
-get_system_info
+eval_system_information
 
-echo $CODEVM_VERSION
-echo "$CODEVM_ARCH"
-echo "$CODEVM_OS"
-echo "$CODEVM_OS_LIKE"
+# echo $CODEVM_VERSION
+# echo "$CODEVM_ARCH"
+# echo "$CODEVM_OS"
+# echo "$CODEVM_OS_LIKE"
 
 case $1 in
     "check") # Check hash of the installed version
@@ -76,7 +100,7 @@ case $1 in
 
     "install") # Download and install specific verion
         echo "Installing"
-        is_version_correct "$2" && download_package
+        is_version_correct "$2" && download_package && install_package
         ;;
 
     "list") # List all available versions (Oh my... how do I do it?)
