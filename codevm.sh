@@ -2,21 +2,10 @@
 
 CODEVM_VERSION="0.1.0"
 
-codevm_help () {
-    echo "CodeVM - VsCode Version Manager (v$CODEVM_VERSION)"
-    exit 0
-}
-
-wrong_args () {
-    echo "Wrong arguments given: $*"
-    echo "Type codevm [--help] to see available options"
-    exit 1
-}
-
 eval_system_information () {
     CODEVM_ARCH=$(uname -m)
     CODEVM_OS=$(uname -s)
-    CODEVM_OS_LIKE=$(cat /etc/os-release | grep ID_LIKE | grep -o '[a-z]*')
+    CODEVM_OS_LIKE=$(cat /etc/os-release | grep ID_LIKE | cut -d '=' -f 2)s
 
 
     if [[ $CODEVM_OS =~ (Darwin|darwin) ]]; then
@@ -38,30 +27,43 @@ eval_system_information () {
     else
         CODEVM_PACK_ARCH="$CODEVM_PACK_ARCH-armhf"
     fi
-
-    # echo "$CODEVM_OS_LIKE"
-    # echo "$CODEVM_PACK_ARCH"
 }
 
 download_package () {
-    #  wget -q -O "code_$2_info.json" "https://update.code.visualstudio.com/api/versions/$2/linux-deb-x64/stable"
+    TIMESTAMP="$(date +%s)"
 
-    # wget -q --show-progress -O "code_$CODEVM_PACK_VERSION.deb" -P "$HOME/" "https://update.code.visualstudio.com/$CODEVM_PACK_VERSION/linux-deb-x64/$CODEVM_PACK_BUILD"
-    wget -P "$HOME/vscode_versions" --trust-server-names "https://update.code.visualstudio.com/$CODEVM_PACK_VERSION/$CODEVM_PACK_ARCH/$CODEVM_PACK_BUILD"
+    mkdir -p "$HOME/vscode_versions/$TIMESTAMP"
 
-    # echo "Error: Probably wget error"; exit 1; 
+    wget -q -P "$HOME/vscode_versions/$TIMESTAMP" --trust-server-names --show-progress "https://update.code.visualstudio.com/$CODEVM_PACK_VERSION/$CODEVM_PACK_ARCH/$CODEVM_PACK_BUILD"
+}
 
-    # URL= grep -o 'https://[a-zA-Z0-9/.-]*' code_$2.json 
+download_json () {
+    # NO NEED TO DOWNLOAD TO FILE - JUST GREP IF HASH IS CONTAINED IN THE OUTPUT
+
+    # [ "$CODEVM_PACK_VERSION" = "latest" ] && 
+    # echo "Go to https://code.visualstudio.com/sha
+    # Find your version and compare hashes using:
+    #     sha256sum - for version 1.13.0 and above
+    #     sha1sum - for versions before 1.13.0
+    
+    # Example
+    #     sha256sum code_1.65.0.deb
+    # "
+
+
+    wget -nc -O "$HOME/vscode_versions/$TIMESTAMP/json" "https://update.code.visualstudio.com/api/versions/$CODEVM_PACK_VERSION/$CODEVM_PACK_ARCH/$CODEVM_PACK_BUILD"
 }
 
 install_package () {
-    echo "Should be installing..."
+    echo "Install"
 }
 
-is_version_correct () {
+verify_version () {
+    [ -z "$1" ] && (echo "No version argument"; exit)
+
     if [[ ! $1 =~ ^([0-9]\.[0-9]{1,2}\.[0-9]|stable|insider)$ ]]; then
         echo "Supplied version: $1 is not correct"
-        exit 127
+        exit
     fi
 
     if [[ $1 =~ ^(stable|insider)$ ]]; then
@@ -78,45 +80,38 @@ is_version_correct () {
     return 0
 }
 
-[ $# -lt 1 ] && codevm_help
-
-eval_system_information
-
-# echo $CODEVM_VERSION
-# echo "$CODEVM_ARCH"
-# echo "$CODEVM_OS"
-# echo "$CODEVM_OS_LIKE"
-
 case $1 in
-    "check") # Check hash of the installed version
+    'check') # Check hash of the installed version
         CODE="$(code --version | head -n 1)" # grep -o '[1-9].[1-9]{1,2}.[1-9]{1,2}
         echo "$CODE"
         ;;
 
-    "download") # Download specific version
-        echo "Downloading"
-        is_version_correct "$2" && download_package
+    'get' | 'download') # Download specific version
+        eval_system_information; verify_version "$2" && download_package
         ;;
 
-    "install") # Download and install specific verion
-        echo "Installing"
-        is_version_correct "$2" && download_package && install_package
+    'getin' | 'getinstall') # Download and install specific verion (GET && INSTALL)
+        eval_system_information; verify_version "$2" && download_package && install_package
         ;;
 
-    "list") # List all available versions (Oh my... how do I do it?)
-        echo "listing"
-        ;;
+    'install') # Add to $PATH
+        echo "Adding to path";;
 
-    "show") # Show specific version info
-        echo "Showing something"
-        ;;
+    'uninstall') # Remove from $PATH
+        echo "Uninstalling";;
 
-    "upgrade") # For future use
-        echo "Upgrading"
-        ;;
+    'list') # List all available versions (Oh my... how do I do it?)
+        echo "listing";;
+
+    'show') # Show specific version info
+        echo "Showing something";;
+
+    '' | '-h' | '--help')
+        echo "CodeVM - VsCode Version Manager (v$CODEVM_VERSION)
+        Usage: 
+            codevm [Action] [Options]";;
 
     *) # Exit the program
-        echo "Command $1 not recognized"
-        exit 127
-        ;;
+        echo "Wrong arguments given: $*
+        Type: codevm [-h|--help] to see available options";;
 esac
