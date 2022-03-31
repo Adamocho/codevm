@@ -31,28 +31,50 @@ eval_system_information () {
 
 download_package () {
     TIMESTAMP="$(date +%s)"
+    PACK_URL="https://update.code.visualstudio.com/$CODEVM_PACK_VERSION/$CODEVM_PACK_ARCH/$CODEVM_PACK_BUILD"
+    PACK_DIR="$HOME/vscode_versions/$TIMESTAMP"
 
-    mkdir -p "$HOME/vscode_versions/$TIMESTAMP"
+    echo "Save directory: $PACK_DIR"
 
-    wget -q -P "$HOME/vscode_versions/$TIMESTAMP" --trust-server-names --show-progress "https://update.code.visualstudio.com/$CODEVM_PACK_VERSION/$CODEVM_PACK_ARCH/$CODEVM_PACK_BUILD"
+    echo "Getting package: $PACK_URL"
+
+    mkdir -p "$PACK_DIR"
+    wget -q -P "$PACK_DIR" --trust-server-names --show-progress "$PACK_URL"
 }
 
 download_json () {
-    # NO NEED TO DOWNLOAD TO FILE - JUST GREP IF HASH IS CONTAINED IN THE OUTPUT
+    [ "$CODEVM_PACK_VERSION" = "latest" ] && 
+    JSON_URL="https://code.visualstudio.com/sha?build=$CODEVM_PACK_BUILD" ||
+    JSON_URL="https://update.code.visualstudio.com/api/versions/$CODEVM_PACK_VERSION/$CODEVM_PACK_ARCH/$CODEVM_PACK_BUILD"
 
-    # [ "$CODEVM_PACK_VERSION" = "latest" ] && 
-    # echo "Go to https://code.visualstudio.com/sha
-    # Find your version and compare hashes using:
-    #     sha256sum - for version 1.13.0 and above
-    #     sha1sum - for versions before 1.13.0
-    
-    # Example
-    #     sha256sum code_1.65.0.deb
-    # "
-
-
-    wget -nc -O "$HOME/vscode_versions/$TIMESTAMP/json" "https://update.code.visualstudio.com/api/versions/$CODEVM_PACK_VERSION/$CODEVM_PACK_ARCH/$CODEVM_PACK_BUILD"
+    echo "Getting json: $JSON_URL"
+    wget -q --show-progress -O "$PACK_DIR/json" "$JSON_URL"
 }
+
+compare_hash () {
+    cd "$PACK_DIR" || (echo "cd failed"; exit)
+
+    PACK_FILE=$(ls --hide="*json*" | tr -d "[:space:]")
+
+    [ -z "$PACK_FILE" ] && (echo "No package file found"; exit)
+
+    echo "Checking sha1sum of $PACK_FILE:"
+
+    PACK_SHA1=$(sha1sum "$PACK_FILE" | cut -d " " -f 1 | tr -d "[:space:]")
+    PACK_SHA256=$(sha256sum "$PACK_FILE" | cut -d " " -f 1 | tr -d "[:space:]")
+
+    [ -z "$PACK_SHA1" ] || [ -z "$PACK_SHA256" ] && (echo "File not found"; exit)
+
+    echo "Package sha1sum: $PACK_SHA1"
+    echo "Package sha1sum: $PACK_SHA256"
+
+    echo "Checking sha1..."
+    [ -n $(grep -q "$PACK_SHA1" "$PACK_DIR/json") ] && (echo "$PACK_FILE matches SHA1") || (echo "SHA1 hash does not match: $PACK_FILE may be corrupt - do not install"; exit)
+
+    echo "Checking sha256..."
+    [ -n $(grep -q "$PACK_SHA256" "$PACK_DIR/json") ] && (echo "$PACK_FILE matches SHA256") || (echo "(IGNORE IF CODE VERSION < 1.13.0) SHA256 hash does not match: $PACK_FILE may be corrupt - do not install"; exit)
+}
+
 
 install_package () {
     echo "Install"
@@ -82,16 +104,16 @@ verify_version () {
 
 case $1 in
     'check') # Check hash of the installed version
-        CODE="$(code --version | head -n 1)" # grep -o '[1-9].[1-9]{1,2}.[1-9]{1,2}
+        CODE="$(code --version | head -n 1)"
         echo "$CODE"
         ;;
 
     'get' | 'download') # Download specific version
-        eval_system_information; verify_version "$2" && download_package
+        eval_system_information; verify_version "$2" && download_package && download_json && compare_hash
         ;;
 
-    'getin' | 'getinstall') # Download and install specific verion (GET && INSTALL)
-        eval_system_information; verify_version "$2" && download_package && install_package
+    'getin' | 'getinstall') # Download and install specific verion (get & in-stall)
+        eval_system_information; verify_version "$2" && download_package && download_json && compare_hash
         ;;
 
     'install') # Add to $PATH
