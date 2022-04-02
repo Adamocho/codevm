@@ -6,6 +6,8 @@ eval_system_information () {
     CODEVM_ARCH=$(uname -m)
     CODEVM_OS=$(uname -s)
     CODEVM_OS_LIKE=$(grep ID_LIKE < /etc/os-release | cut -d '=' -f 2)
+    CODEVM_DOCS_URL="https://code.visualstudio.com/docs"
+    CODEVM_UPDATE_URL="https://code.visualstudio.com/updates"
 
     if echo "$CODEVM_OS" | grep -Eq "(Darwin|darwin)"; then
         CODEVM_PACK_ARCH="darwin-universal"
@@ -31,7 +33,6 @@ eval_system_information () {
 download_package () {
     TIMESTAMP="$(date +%s)"
     PACK_URL="https://update.code.visualstudio.com/$CODEVM_PACK_VERSION/$CODEVM_PACK_ARCH/$CODEVM_PACK_BUILD"
-    PACK_DIR="$HOME/vscode_versions/$TIMESTAMP"
 
     echo "Save directory: $PACK_DIR"
 
@@ -53,32 +54,33 @@ download_json () {
 compare_hash () {
     PACK_FILE=$(find "$PACK_DIR" -type f -not -name json | tr -d "[:space:]")
 
-    [ -z "$PACK_FILE" ] && (echo "No package file found"; exit)
-
+    [ -z "$PACK_FILE" ] && echo "No package file found" && exit
 
     PACK_SHA1=$(sha1sum "$PACK_FILE" | cut -d " " -f 1 | tr -d "[:space:]")
     PACK_SHA256=$(sha256sum "$PACK_FILE" | cut -d " " -f 1 | tr -d "[:space:]")
 
-    [ -z "$PACK_SHA1" ] || [ -z "$PACK_SHA256" ] && (echo "File not found"; exit)
+    [ -z "$PACK_SHA1" ] || [ -z "$PACK_SHA256" ] && echo "File not found" && exit
 
     echo "Vscode package sha1sum: $PACK_SHA1"
     echo "Vscode package sha1sum: $PACK_SHA256"
 
-    printf "\n Checking sha1..."
+    printf "\nChecking sha1...      "
     if grep -q "$PACK_SHA1" "$PACK_DIR/json"; then
-        echo "$PACK_FILE matches SHA1"
+        echo "sha1 is OK"
     else
-        echo "SHA1 hash does not match:   $PACK_FILE  may be corrupt   -->     do not install"
+        echo "sha1 hash does not match:   $PACK_FILE  may be corrupt   -->     do not install"
         exit
     fi
 
-    [ "$(echo "$CODEVM_PACK_VERSION" | cut -d '.' -f 2)" -lt 13 ] 2> /dev/null && (echo "Version below 1.13.0 -> no sha256 check"; exit)
+    [ "$(echo "$CODEVM_PACK_VERSION" | cut -d '.' -f 2)" -lt 13 ] 2> /dev/null && exit
 
-    printf "\n Checking sha256..."
+    printf "\n| Vscode version is 1.13.0 or above --> sha256 check required |\n"
+
+    printf "\nChecking sha256...    "
     if grep -q "$PACK_SHA256" "$PACK_DIR/json"; then
-        echo "$PACK_FILE matches SHA256"
+        echo "sha256 is OK"
     else
-        echo "SHA256 hash does not match:   $PACK_FILE  may be corrupt   -->     do not install"
+        echo "sha256 hash does not match:   $PACK_FILE  may be corrupt   -->     do not install"
         exit
     fi
 }
@@ -89,8 +91,6 @@ install_package () {
 }
 
 verify_version () {
-    [ -z "$1" ] && (echo "No version argument"; exit)
-
     if ! echo "$1" | grep -Eq "^([0-9]\.[0-9]{1,2}\.[0-9]|stable|insider)$"; then
         echo "Supplied version: $1 is not correct"
         exit
@@ -99,9 +99,11 @@ verify_version () {
     if echo "$1" | grep -Eq "^(stable|insider)$"; then
         CODEVM_PACK_BUILD=$1
         CODEVM_PACK_VERSION="latest"
+        PACK_DIR="$HOME/vscode_versions/$(echo $CODEVM_PACK_BUILD)_$(date +%s | sha1sum | head -c 5)"
     else
         CODEVM_PACK_BUILD="stable"
         CODEVM_PACK_VERSION=$1
+        PACK_DIR="$HOME/vscode_versions/$(echo $CODEVM_PACK_VERSION | tr -d '.')_$(date +%s | sha1sum | head -c 5)"
     fi
 
     echo "Build: $CODEVM_PACK_BUILD"
@@ -110,11 +112,21 @@ verify_version () {
     return 0
 }
 
+eval_system_information
+
 case $1 in
     'check') # Check hash of the installed version
         CODE="$(code --version | head -n 1)"
         echo "$CODE"
         ;;
+
+    'docs' | 'documentation')
+        printf "\n      Opening $CODEVM_DOCS_URL \n"
+        xdg-open "$CODEVM_DOCS_URL" &;;
+
+    'summ' | 'summary' | 'view' | 'overview') # View current version
+        printf "\n      Opening $CODEVM_UPDATE_URL \n"
+        xdg-open "$CODEVM_UPDATE_URL" &;;
 
     'get' | 'download') # Download specific version
         eval_system_information; verify_version "$2" && download_package && download_json && compare_hash
