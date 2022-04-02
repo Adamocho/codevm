@@ -1,2 +1,4 @@
-json_example
-info.txt
+# gitignore
+HEAD
+alias
+v*
