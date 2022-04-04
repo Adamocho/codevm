@@ -1,13 +1,15 @@
-#!/bin/bash
+#!/usr/bin/sh
 
 CODEVM_VERSION="0.1.0"
 
-eval_system_information () {
+initialize () {
     CODEVM_ARCH=$(uname -m)
     CODEVM_OS=$(uname -s)
     CODEVM_OS_LIKE=$(grep ID_LIKE < /etc/os-release | cut -d '=' -f 2)
     CODEVM_DOCS_URL="https://code.visualstudio.com/docs"
     CODEVM_UPDATE_URL="https://code.visualstudio.com/updates"
+    INSTALL_PATH="/usr/bin/codevm"
+    CODEVM_DIR="$HOME/vscode_versions"
 
     if echo "$CODEVM_OS" | grep -Eq "(Darwin|darwin)"; then
         CODEVM_PACK_ARCH="darwin-universal"
@@ -28,17 +30,18 @@ eval_system_information () {
     else
         CODEVM_PACK_ARCH="$CODEVM_PACK_ARCH-armhf"
     fi
+
+    [ -d "$CODEVM_DIR" ] || mkdir -p "$CODEVM_DIR/list.txt"
 }
 
 download_package () {
-    TIMESTAMP="$(date +%s)"
+    [ -d $PACK_DIR ] || mkdir -p "$PACK_DIR"
+
     PACK_URL="https://update.code.visualstudio.com/$CODEVM_PACK_VERSION/$CODEVM_PACK_ARCH/$CODEVM_PACK_BUILD"
 
     echo "Save directory: $PACK_DIR"
-
     echo "Getting package: $PACK_URL"
 
-    mkdir -p "$PACK_DIR"
     wget -q -P "$PACK_DIR" --trust-server-names --show-progress "$PACK_URL"
 }
 
@@ -85,7 +88,6 @@ compare_hash () {
     fi
 }
 
-
 install_package () {
     echo "Install"
 }
@@ -108,16 +110,13 @@ verify_version () {
 
     echo "Build: $CODEVM_PACK_BUILD"
     echo "Version: $CODEVM_PACK_VERSION"
-
-    return 0
 }
 
-eval_system_information
+initialize
 
 case $1 in
     'check') # Check hash of the installed version
-        CODE="$(code --version | head -n 1)"
-        echo "$CODE"
+        echo "$(code --version | head -n 1)"
         ;;
 
     'docs' | 'documentation')
@@ -125,25 +124,41 @@ case $1 in
         xdg-open "$CODEVM_DOCS_URL" &;;
 
     'summ' | 'summary' | 'view' | 'overview') # View current version
-        printf "\n      Opening $CODEVM_UPDATE_URL \n"
-        xdg-open "$CODEVM_UPDATE_URL" &;;
+        printf "\n      Opening $CODEVM_CURRENT_URL \n"
+        xdg-open "$CODEVM_CURRENT_URL" &;;
 
     'get' | 'download') # Download specific version
-        eval_system_information; verify_version "$2" && download_package && download_json && compare_hash
+        verify_version "$2" && download_package && download_json && compare_hash
         ;;
 
-    'getin' | 'getinstall') # Download and install specific verion (get & in-stall)
-        eval_system_information; verify_version "$2" && download_package && download_json && compare_hash
+    'getin' | 'getinstall' | 'install') # Download and install specific verion (get & in-stall)
+        verify_version "$2" && download_package && download_json && compare_hash
         ;;
 
-    'install') # Add to $PATH
-        echo "Adding to path";;
+    'add') # Add to $PATH
+        echo "Adding to path:"
+        (set -x; sudo cp $0 $INSTALL_PATH) || exit 4
+        exit 0;;
 
-    'uninstall') # Remove from $PATH
-        echo "Uninstalling";;
+    'remove') # Remove from $PATH
+        (set -x; sudo rm -i $INSTALL_PATH) || exit 4
+        exit 0;;
 
-    'list') # List all available versions (Oh my... how do I do it?)
-        echo "listing";;
+    'update-list' | 'fetch') # List all available versions (stable for now)
+        LATEST_VERSION=$(wget -O- "https://code.visualstudio.com/sha" 2> /dev/null | grep -Eo "1\.[0-9]{1,2}\.[0-9]" | head -1 | cut -d "." -f 2 &)
+        [ -z "$LATEST_VERSION" ] && exit
+
+        for minor in $(seq 0 $LATEST_VERSION); do
+            wget -O- "https://update.code.visualstudio.com/api/versions/1.$minor.0/linux-x64/stable" 2> /dev/null | grep -Eo "1\.[0-9]{1,2}\.[0-9]" | head -1 >> "$CODEVM_DIR"/list.txt &
+        done
+
+        echo "List saved at $CODEVM_DIR/list.txt"
+        ;;
+
+    'list')
+        [ -e $HOME/vscode_versions/list.txt ] || exit
+        sort -t '.' -k 2n  $HOME/vscode_versions/list.txt
+        ;;
 
     'show') # Show specific version info
         echo "Showing something";;
@@ -152,6 +167,9 @@ case $1 in
         echo "CodeVM - VsCode Version Manager (v$CODEVM_VERSION)
         Usage: 
             codevm [Action] [Options]";;
+
+    '-v' | '--version')
+        echo "v$CODEVM_VERSION";;
 
     *)
         echo "Wrong arguments given: $*
