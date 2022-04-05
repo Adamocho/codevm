@@ -7,7 +7,7 @@ initialize () {
     CODEVM_OS=$(uname -s)
     CODEVM_OS_LIKE=$(grep ID_LIKE < /etc/os-release | cut -d '=' -f 2)
     CODEVM_DOCS_URL="https://code.visualstudio.com/docs"
-    CODEVM_UPDATE_URL="https://code.visualstudio.com/updates"
+    CODEVM_CURRENT_URL="https://code.visualstudio.com/updates"
     INSTALL_PATH="/usr/bin/codevm"
     CODEVM_DIR="$HOME/vscode_versions"
 
@@ -35,7 +35,7 @@ initialize () {
 }
 
 download_package () {
-    [ -d $PACK_DIR ] || mkdir -p "$PACK_DIR"
+    [ -d "$PACK_DIR" ] || mkdir -p "$PACK_DIR"
 
     PACK_URL="https://update.code.visualstudio.com/$CODEVM_PACK_VERSION/$CODEVM_PACK_ARCH/$CODEVM_PACK_BUILD"
 
@@ -101,11 +101,11 @@ verify_version () {
     if echo "$1" | grep -Eq "^(stable|insider)$"; then
         CODEVM_PACK_BUILD=$1
         CODEVM_PACK_VERSION="latest"
-        PACK_DIR="$HOME/vscode_versions/$(echo $CODEVM_PACK_BUILD)_$(date +%s | sha1sum | head -c 5)"
+        PACK_DIR="$HOME/vscode_versions/${CODEVM_PACK_BUILD}_$(date +%s | sha1sum | head -c 5)"
     else
         CODEVM_PACK_BUILD="stable"
         CODEVM_PACK_VERSION=$1
-        PACK_DIR="$HOME/vscode_versions/$(echo $CODEVM_PACK_VERSION | tr -d '.')_$(date +%s | sha1sum | head -c 5)"
+        PACK_DIR="$HOME/vscode_versions/$(echo "$CODEVM_PACK_VERSION" | tr -d '.')_$(date +%s | sha1sum | head -c 5)"
     fi
 
     echo "Build: $CODEVM_PACK_BUILD"
@@ -116,15 +116,15 @@ initialize
 
 case $1 in
     'check') # Check hash of the installed version
-        echo "$(code --version | head -n 1)"
+        code --version | head -n 1
         ;;
 
     'docs' | 'documentation')
-        printf "\n      Opening $CODEVM_DOCS_URL \n"
+        printf "\n      Opening %s \n" "$CODEVM_DOCS_URL"
         xdg-open "$CODEVM_DOCS_URL" &;;
 
     'summ' | 'summary' | 'view' | 'overview') # View current version
-        printf "\n      Opening $CODEVM_CURRENT_URL \n"
+        printf "\n      Opening %s \n" "$CODEVM_CURRENT_URL"
         xdg-open "$CODEVM_CURRENT_URL" &;;
 
     'get' | 'download') # Download specific version
@@ -137,7 +137,7 @@ case $1 in
 
     'add') # Add to $PATH
         echo "Adding to path:"
-        (set -x; sudo cp $0 $INSTALL_PATH) || exit 4
+        (set -x; sudo cp "$0" $INSTALL_PATH) || exit 4
         exit 0;;
 
     'remove') # Remove from $PATH
@@ -148,7 +148,7 @@ case $1 in
         LATEST_VERSION=$(wget -O- "https://code.visualstudio.com/sha" 2> /dev/null | grep -Eo "1\.[0-9]{1,2}\.[0-9]" | head -1 | cut -d "." -f 2 &)
         [ -z "$LATEST_VERSION" ] && exit
 
-        for minor in $(seq 0 $LATEST_VERSION); do
+        for minor in $(seq 0 "$LATEST_VERSION"); do
             wget -O- "https://update.code.visualstudio.com/api/versions/1.$minor.0/linux-x64/stable" 2> /dev/null | grep -Eo "1\.[0-9]{1,2}\.[0-9]" | head -1 >> "$CODEVM_DIR"/list.txt &
         done
 
@@ -156,8 +156,8 @@ case $1 in
         ;;
 
     'list')
-        [ -e $HOME/vscode_versions/list.txt ] || exit
-        sort -t '.' -k 2n  $HOME/vscode_versions/list.txt
+        [ -e "$HOME"/vscode_versions/list.txt ] || exit
+        sort -t '.' -k 2n  "$HOME"/vscode_versions/list.txt
         ;;
 
     'show') # Show specific version info
