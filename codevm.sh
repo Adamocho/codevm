@@ -156,8 +156,9 @@ case $1 in
         ;;
 
     'list')
-        [ -e "$HOME"/vscode_versions/list.txt ] || exit
-        sort -t '.' -k 2n  "$HOME"/vscode_versions/list.txt
+        [ -e "$HOME"/vscode_versions/list.txt ] &&
+        sort -t '.' -k 2n  "$HOME"/vscode_versions/list.txt ||
+        echo "'list.txt' file not found. Use: codevm fetch to create one"
         ;;
 
     'show') # Show specific version info
