@@ -69,7 +69,7 @@ compare_hash () {
 
     printf "\nChecking sha1...      "
     if grep -q "$PACK_SHA1" "$PACK_DIR/json"; then
-        echo "sha1 is OK"
+        echo "It matches sha1"
     else
         echo "sha1 hash does not match:   $PACK_FILE  may be corrupt   -->     do not install"
         exit
@@ -81,7 +81,7 @@ compare_hash () {
 
     printf "\nChecking sha256...    "
     if grep -q "$PACK_SHA256" "$PACK_DIR/json"; then
-        echo "sha256 is OK"
+        echo "It matches sha256"
     else
         echo "sha256 hash does not match:   $PACK_FILE  may be corrupt   -->     do not install"
         exit
@@ -89,7 +89,7 @@ compare_hash () {
 }
 
 install_package () {
-    echo "Install"
+    echo "Installing.."
 }
 
 verify_version () {
@@ -105,7 +105,7 @@ verify_version () {
     else
         CODEVM_PACK_BUILD="stable"
         CODEVM_PACK_VERSION=$1
-        PACK_DIR="$HOME/vscode_versions/$(echo "$CODEVM_PACK_VERSION" | tr -d '.')_$(date +%s | sha1sum | head -c 5)"
+        PACK_DIR="$HOME/vscode_versions/$(printf '%x' $(date +%s))"
     fi
 
     echo "Build: $CODEVM_PACK_BUILD"
@@ -132,7 +132,7 @@ case $1 in
         ;;
 
     'getin' | 'getinstall' | 'install') # Download and install specific verion (get & in-stall)
-        verify_version "$2" && download_package && download_json && compare_hash
+        verify_version "$2" && download_package && download_json && compare_hash && install_package
         ;;
 
     'add') # Add to $PATH
