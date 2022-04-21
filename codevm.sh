@@ -54,6 +54,14 @@ download_json () {
     wget -q --show-progress -O "$PACK_DIR/json" "$JSON_URL"
 }
 
+mark_as_corrupted () {
+    {
+        PACK_NAME=$("ls $PACK_DIR" | grep -Ev 'json')
+        mv "$PACK_DIR/$PACK_NAME" "$PACK_DIR/corrupted_$PACK_NAME"
+    }
+    echo "It is marked as corrupted"
+}
+
 compare_hash () {
     PACK_FILE=$(find "$PACK_DIR" -type f -not -name json | tr -d "[:space:]")
 
@@ -72,6 +80,7 @@ compare_hash () {
         echo "It matches sha1"
     else
         echo "sha1 hash does not match:   $PACK_FILE  may be corrupt   -->     do not install"
+        mark_as_corrupted
         exit
     fi
 
@@ -84,6 +93,7 @@ compare_hash () {
         echo "It matches sha256"
     else
         echo "sha256 hash does not match:   $PACK_FILE  may be corrupt   -->     do not install"
+        mark_as_corrupted
         exit
     fi
 }
@@ -101,12 +111,12 @@ verify_version () {
     if echo "$1" | grep -Eq "^(stable|insider)$"; then
         CODEVM_PACK_BUILD=$1
         CODEVM_PACK_VERSION="latest"
-        PACK_DIR="$HOME/vscode_versions/${CODEVM_PACK_BUILD}_$(date +%s | sha1sum | head -c 5)"
     else
         CODEVM_PACK_BUILD="stable"
         CODEVM_PACK_VERSION=$1
-        PACK_DIR="$HOME/vscode_versions/$(printf '%x' $(date +%s))"
     fi
+
+    PACK_DIR="$HOME/vscode_versions/$(printf '%x' "$(date +%s)")"
 
     echo "Build: $CODEVM_PACK_BUILD"
     echo "Version: $CODEVM_PACK_VERSION"
