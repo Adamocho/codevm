@@ -39,7 +39,7 @@ Simple and intuitive!
 
 ## About
 
-`codevm` - a version manager for vscode, works on any POSIX-compliant shell like *bash*, *zsh* or *fish*.
+`codevm` - a version manager for vscode, works on any POSIX-compliant shell like `bash`, `zsh` or `fish`.
 
 ### Short story about the origins of this project
 
@@ -49,29 +49,29 @@ I was furious when realized that the distribution of linux, which I was using at
 
 Currently, cloning git repo is the only way to go
 ```sh
-$   git clone https://github.com/Adamocho/codevm.git ~/.cache/codevm
+git clone https://github.com/Adamocho/codevm.git ~/.cache/codevm
 ```
 Check whether `~/.cache/codevm.sh` is executable, and if not - change it
 ```sh
-$   [sudo] chmod +x ~/.cache/codevm.sh
+[sudo] chmod +x ~/.cache/codevm.sh
 ```
 
 Now, add it to path
 ```sh
-$   ~/.cache/codevm.sh add
+~/.cache/codevm.sh add
 ```
 From now on, the `codevm` command will be available for every user
 
 ## Uninstalling
 
-Use:
+Delete the script from your path
+
 ```sh
-$   codevm remove
-# Delete the script from your path
+codevm remove
 ```
 Remove the *codevm* folder from your .cache directory
 ```sh
-$   rm -r ~/.cache/codevm
+rm -r ~/.cache/codevm
 ```
 
 ## Usage
@@ -82,46 +82,39 @@ This section describes a basic usage of this script
 
 For downloading, use: `download` | `get`
 ```sh
-$   codevm download <stable/insider/specific_version>
+codevm download <stable/insider/specific_version>
 ```
 
 For installing, use: `getin` | `getinstall` | `install`
 ```sh
-$   codevm install <stable/insider/specific_version>
+codevm install <stable/insider/specific_version>
 ```
 
 ### Versions info
 
 Check your vscode version using `check`
 ```sh
-$   codevm check
+codevm check
 ```
 
 See the docs in your browser with `docs` | `documentation`
 ```sh
-$   codevm docs
+codevm docs
 ```
 
 See the current version website with `summ` | `summary` | `view` | `overview`
 ```sh
-$   codevm summary
+codevm summary
 ```
 
 Update versions list with `update-list` | `fetch`
 And inspect it with `list`
 ```sh
-$   codevm fetch
+codevm fetch
 # Then
-$   codevm list
+codevm list
 ```
-### Miscelaneous
-
-Add or remove the script from path
-```sh
-$   codevm add
-# OR
-$   codevm remove
-```
+### Miscellaneous
 
 `-h` for help
 
