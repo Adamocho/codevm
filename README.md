@@ -1,5 +1,7 @@
 # VSCODE VERSION MANAGER
 
+![CODEVM logo](./codevm-smaller.svg)
+
 Any vscode version on any \*nix machine
 
 ## Table of content
