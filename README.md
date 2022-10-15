@@ -2,7 +2,7 @@
 
 ![CODEVM logo](./codevm-smaller.svg)
 
-Any vscode version on any \*nix machine
+Any vscode on any \*nix
 
 ## Table of content
 - [Intro](#intro)
@@ -45,7 +45,7 @@ Simple and intuitive!
 
 ### Short story about the origins of this project
 
-I was furious when realized that the distribution of linux, which I was using at the time, did not include a proper vscode package in their package manager repository. And then I thought to myself: "Wouldn't it be nice, if I could have ** any version ** of vscode at my beck and call?" - the idea was born.
+I was furious when realized that the distribution of linux, which I was using at the time, did not include a proper vscode package in their package manager repository. And then I thought to myself: "Wouldn't it be nice, if I could have ** any version ** of vscode at my call?" - the idea was born.
 
 ## Installing
 
@@ -82,35 +82,33 @@ This section describes a basic usage of this script
 
 ### Downloading / Installing vscode
 
-For downloading, use: `download` | `get`
+For downloading, use: `download` | `-d`
 ```sh
 codevm download <stable/insider/specific_version>
 ```
 
-For installing, use: `getin` | `getinstall` | `install`
+For installing, use: `install` | `-i`
 ```sh
 codevm install <stable/insider/specific_version>
 ```
 
 ### Versions info
 
-Check your vscode version using `check`
-```sh
-codevm check
-```
-
-See the docs in your browser with `docs` | `documentation`
+See the docs in your browser with `docs`
 ```sh
 codevm docs
 ```
 
-See the current version website with `summ` | `summary` | `view` | `overview`
+See the current version website with `summary`
 ```sh
 codevm summary
 ```
 
-Update versions list with `update-list` | `fetch`
-And inspect it with `list`
+Update versions list with `fetch`
+
+*then*
+
+Inspect it with `list`
 ```sh
 codevm fetch
 # Then

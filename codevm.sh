@@ -125,23 +125,19 @@ verify_version () {
 initialize
 
 case $1 in
-    'check') # Check hash of the installed version
-        code --version | head -n 1
-        ;;
-
-    'docs' | 'documentation')
+    'docs')
         printf "\n      Opening %s \n" "$CODEVM_DOCS_URL"
         xdg-open "$CODEVM_DOCS_URL" &;;
 
-    'summ' | 'summary' | 'view' | 'overview') # View current version
+    'summary') # View current version
         printf "\n      Opening %s \n" "$CODEVM_CURRENT_URL"
         xdg-open "$CODEVM_CURRENT_URL" &;;
 
-    'get' | 'download') # Download specific version
+    'download' | '-d') # Download specific version
         verify_version "$2" && download_package && download_json && compare_hash
         ;;
 
-    'getin' | 'getinstall' | 'install') # Download and install specific verion (get & in-stall)
+    'install' | '-i') # Download and install specific verion (get & in-stall)
         verify_version "$2" && download_package && download_json && compare_hash && install_package
         ;;
 
@@ -154,7 +150,7 @@ case $1 in
         (set -x; sudo rm -i $INSTALL_PATH) || exit 4
         exit 0;;
 
-    'update-list' | 'fetch') # List all available versions (stable for now)
+    'fetch') # List all available versions (stable for now)
         LATEST_VERSION=$(wget -O- "https://code.visualstudio.com/sha" 2> /dev/null | grep -Eo "1\.[0-9]{1,2}\.[0-9]" | head -1 | cut -d "." -f 2 &)
         [ -z "$LATEST_VERSION" ] && exit
 
@@ -165,22 +161,47 @@ case $1 in
         echo "List saved at $CODEVM_DIR/list.txt"
         ;;
 
-    'list')
+    'list' | '-l')
         [ -e "$HOME"/vscode_versions/list.txt ] &&
         sort -t '.' -k 2n  "$HOME"/vscode_versions/list.txt ||
         echo "'list.txt' file not found. Use: codevm fetch to create one"
         ;;
 
-    'show') # Show specific version info
-        echo "Showing something";;
-
     '' | '-h' | '--help')
         echo "CodeVM - VsCode Version Manager (v$CODEVM_VERSION)
         Usage: 
-            codevm [Action] [Options]";;
+            codevm [Action] [Options]
+            
+        Actions:
+            add
+                    Copies the program to path
+
+            remove
+                    Deletes the program from path
+
+            download/-d <stable/insider/x.x.x>
+                    Get the specified version of vscode.
+                    Example x.x.x variant - 1.0.0
+
+            install/-i <stable/insider/x.x.x>
+                    Same as downloading. Installs the package to the system
+
+            fetch
+                    Get the list of available vscode versions.
+
+            list
+                    Doesn't work without fetch's list. It shows it.
+            
+            docs
+                    Link to the vscode documentation.
+
+            summ
+                    Link to the vscode summary page.
+
+            ";;
 
     '-v' | '--version')
-        echo "v$CODEVM_VERSION";;
+        echo "codevm v$CODEVM_VERSION";;
 
     *)
         echo "Wrong arguments given: $*
