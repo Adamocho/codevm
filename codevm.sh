@@ -1,15 +1,17 @@
 #!/usr/bin/sh
 
 VERSION="0.1.0"
+CURRENT_URL="https://code.visualstudio.com/updates"
+INSTALL_PATH="/usr/bin/codevm"
+DIR="$HOME/.local/codevm"
 
-initialize () {
+# Create directory if doesn't exist.
+[ -d "$DIR" ] || mkdir -p "$DIR"
+
+check_os() {
     ARCH=$(uname -m)
     OS=$(uname -s)
     OS_LIKE=$(grep ID_LIKE < /etc/os-release | cut -d '=' -f 2)
-    DOCS_URL="https://code.visualstudio.com/docs"
-    CURRENT_URL="https://code.visualstudio.com/updates"
-    INSTALL_PATH="/usr/bin/codevm"
-    DIR="$HOME/vscode_versions"
 
     if echo "$OS" | grep -Eq "(Darwin|darwin)"; then
         PACK_ARCH="darwin-universal"
@@ -30,8 +32,6 @@ initialize () {
     else
         PACK_ARCH="$PACK_ARCH-armhf"
     fi
-
-    [ -d "$DIR" ] || mkdir -p "$DIR/list.txt"
 }
 
 download_package () {
@@ -55,11 +55,10 @@ download_json () {
 }
 
 mark_as_corrupted () {
-    {
-        PACK_NAME=$("ls $PACK_DIR" | grep -Ev 'json')
-        mv "$PACK_DIR/$PACK_NAME" "$PACK_DIR/corrupted_$PACK_NAME"
-    }
-    echo "It is marked as corrupted"
+    PACK_NAME=$("ls $PACK_DIR" | grep -Ev 'json')
+    mv -v "$PACK_DIR/$PACK_NAME" "$PACK_DIR/corrupted_$PACK_NAME"
+
+    printf "\033[91mIt is marked as corrupted\033[00m\n"
 }
 
 compare_hash () {
@@ -98,10 +97,6 @@ compare_hash () {
     fi
 }
 
-install_package () {
-    echo "Installing.."
-}
-
 verify_version () {
     if ! echo "$1" | grep -Eq "^([0-9]\.[0-9]{1,2}\.[0-9]|stable|insider)$"; then
         echo "Supplied version: $1 is not correct"
@@ -116,13 +111,22 @@ verify_version () {
         PACK_VERSION=$1
     fi
 
-    PACK_DIR="$HOME/vscode_versions/$(printf '%x' "$(date +%s)")"
+    PACK_DIR="$DIR/$(printf '%x' "$(date +%s)")"
 
-    echo "Build: $PACK_BUILD"
-    echo "Version: $PACK_VERSION"
+    printf "Build: %s\n" "$PACK_BUILD"
+    printf "Version: %s\n" "$PACK_VERSION"
 }
 
-initialize
+fetch_list() {
+    newest_version=$( wget -O- "https://code.visualstudio.com/sha" 2> /dev/null | grep -Eo "1\.[0-9]{1,2}\.[0-9]" | head -1 | cut -d "." -f 2 & )
+    [ -z "$newest_version" ] && { printf "\033[92mCouldn't fetch any data - exiting\033[00m"; exit; }
+
+    # From 1.0.0 -> 1.newest.0
+    for minor in $( seq 0 "$newest_version" ); do
+        link="https://update.code.visualstudio.com/api/versions/1.$minor.0/linux-x64/stable"
+        wget -O- "$link" 2> /dev/null | grep -Eo "1\.[0-9]{1,2}\.[0-9]" | head -1 >> "$DIR"/list.txt &
+    done
+}
 
 case $1 in
     'download')
@@ -142,20 +146,17 @@ case $1 in
         ;;
 
     'fetch')
-        LATEST_VERSION=$(wget -O- "https://code.visualstudio.com/sha" 2> /dev/null | grep -Eo "1\.[0-9]{1,2}\.[0-9]" | head -1 | cut -d "." -f 2 &)
-        [ -z "$LATEST_VERSION" ] && exit
-
-        for minor in $(seq 0 "$LATEST_VERSION"); do
-            wget -O- "https://update.code.visualstudio.com/api/versions/1.$minor.0/linux-x64/stable" 2> /dev/null | grep -Eo "1\.[0-9]{1,2}\.[0-9]" | head -1 >> "$DIR"/list.txt &
-        done
-
-        echo "List saved at $DIR/list.txt"
+        printf "Fetching data..."
+        fetch_list
+        printf "List saved at %s/list.txt" "$DIR"
         ;;
 
     'list')
-        [ -e "$HOME"/vscode_versions/list.txt ] &&
-        sort -t '.' -k 2n  "$HOME"/vscode_versions/list.txt ||
-        echo "'list.txt' file not found. Use: codevm fetch to create one"
+        [ -e "$DIR/list.txt" ] && {
+            sort -t. -k 1,1n -k 2,2n -k 3,3n "/home/adam/.local/codevm/list.txt"
+        } || {
+            echo "'list.txt' file not found. Use: 'codevm fetch' to create one"
+        }
         ;;
 
     '' | '-h' | '--help')
