@@ -1,43 +1,42 @@
 #!/usr/bin/sh
 
-CODEVM_VERSION="0.1.0"
+VERSION="0.1.0"
+INSTALL_PATH="/usr/bin/codevm"
+DIR="$HOME/.local/codevm"
 
-initialize () {
-    CODEVM_ARCH=$(uname -m)
-    CODEVM_OS=$(uname -s)
-    CODEVM_OS_LIKE=$(grep ID_LIKE < /etc/os-release | cut -d '=' -f 2)
-    CODEVM_DOCS_URL="https://code.visualstudio.com/docs"
-    CODEVM_CURRENT_URL="https://code.visualstudio.com/updates"
-    INSTALL_PATH="/usr/bin/codevm"
-    CODEVM_DIR="$HOME/vscode_versions"
+# Create directory if doesn't exist.
+[ -d "$DIR" ] || mkdir -p "$DIR"
 
-    if echo "$CODEVM_OS" | grep -Eq "(Darwin|darwin)"; then
-        CODEVM_PACK_ARCH="darwin-universal"
+check_os() {
+    ARCH=$(uname -m)
+    OS=$(uname -s)
+    OS_LIKE=$(grep ID_LIKE < /etc/os-release | cut -d '=' -f 2)
+
+    if echo "$OS" | grep -Eq "(Darwin|darwin)"; then
+        PACK_ARCH="darwin-universal"
     else
-        CODEVM_PACK_ARCH="linux"
+        PACK_ARCH="linux"
 
-        if echo "$CODEVM_OS_LIKE" | grep -Eq "(debian|ubuntu|kali)"; then
-            CODEVM_PACK_ARCH="$CODEVM_PACK_ARCH-deb"
-        elif echo "$CODEVM_OS_LIKE" | grep -Eq "(redhat|centos|fedora)"; then
-            CODEVM_PACK_ARCH="$CODEVM_PACK_ARCH-rpm"
+        if echo "$OS_LIKE" | grep -Eq "(debian|ubuntu|kali)"; then
+            PACK_ARCH="$PACK_ARCH-deb"
+        elif echo "$OS_LIKE" | grep -Eq "(redhat|centos|fedora)"; then
+            PACK_ARCH="$PACK_ARCH-rpm"
         fi
     fi
 
-    if echo "$CODEVM_ARCH" | grep -Eq "(arm|arch)"; then
-        CODEVM_PACK_ARCH="$CODEVM_PACK_ARCH-arm64"
-    elif echo "$CODEVM_ARCH" | grep -Eq "(amd64|x86|x86_64|i686|i386|sparc)"; then
-        CODEVM_PACK_ARCH="$CODEVM_PACK_ARCH-x64"
+    if echo "$ARCH" | grep -Eq "(arm|arch)"; then
+        PACK_ARCH="$PACK_ARCH-arm64"
+    elif echo "$ARCH" | grep -Eq "(amd64|x86|x86_64|i686|i386|sparc)"; then
+        PACK_ARCH="$PACK_ARCH-x64"
     else
-        CODEVM_PACK_ARCH="$CODEVM_PACK_ARCH-armhf"
+        PACK_ARCH="$PACK_ARCH-armhf"
     fi
-
-    [ -d "$CODEVM_DIR" ] || mkdir -p "$CODEVM_DIR/list.txt"
 }
 
 download_package () {
     [ -d "$PACK_DIR" ] || mkdir -p "$PACK_DIR"
 
-    PACK_URL="https://update.code.visualstudio.com/$CODEVM_PACK_VERSION/$CODEVM_PACK_ARCH/$CODEVM_PACK_BUILD"
+    PACK_URL="https://update.code.visualstudio.com/$PACK_VERSION/$PACK_ARCH/$PACK_BUILD"
 
     echo "Save directory: $PACK_DIR"
     echo "Getting package: $PACK_URL"
@@ -46,20 +45,19 @@ download_package () {
 }
 
 download_json () {
-    [ "$CODEVM_PACK_VERSION" = "latest" ] && 
-    JSON_URL="https://code.visualstudio.com/sha?build=$CODEVM_PACK_BUILD" ||
-    JSON_URL="https://update.code.visualstudio.com/api/versions/$CODEVM_PACK_VERSION/$CODEVM_PACK_ARCH/$CODEVM_PACK_BUILD"
+    [ "$PACK_VERSION" = "latest" ] && 
+    JSON_URL="https://code.visualstudio.com/sha?build=$PACK_BUILD" ||
+    JSON_URL="https://update.code.visualstudio.com/api/versions/$PACK_VERSION/$PACK_ARCH/$PACK_BUILD"
 
     echo "Getting json: $JSON_URL"
     wget -q --show-progress -O "$PACK_DIR/json" "$JSON_URL"
 }
 
 mark_as_corrupted () {
-    {
-        PACK_NAME=$("ls $PACK_DIR" | grep -Ev 'json')
-        mv "$PACK_DIR/$PACK_NAME" "$PACK_DIR/corrupted_$PACK_NAME"
-    }
-    echo "It is marked as corrupted"
+    PACK_NAME=$("ls $PACK_DIR" | grep -Ev 'json')
+    mv -v "$PACK_DIR/$PACK_NAME" "$PACK_DIR/corrupted_$PACK_NAME"
+
+    printf "\033[91mIt is marked as corrupted\033[00m\n"
 }
 
 compare_hash () {
@@ -84,7 +82,7 @@ compare_hash () {
         exit
     fi
 
-    [ "$(echo "$CODEVM_PACK_VERSION" | cut -d '.' -f 2)" -lt 13 ] 2> /dev/null && exit
+    [ "$(echo "$PACK_VERSION" | cut -d '.' -f 2)" -lt 13 ] 2> /dev/null && exit
 
     printf "\n| Vscode version is 1.13.0 or above --> sha256 check required |\n"
 
@@ -98,10 +96,6 @@ compare_hash () {
     fi
 }
 
-install_package () {
-    echo "Installing.."
-}
-
 verify_version () {
     if ! echo "$1" | grep -Eq "^([0-9]\.[0-9]{1,2}\.[0-9]|stable|insider)$"; then
         echo "Supplied version: $1 is not correct"
@@ -109,101 +103,103 @@ verify_version () {
     fi
 
     if echo "$1" | grep -Eq "^(stable|insider)$"; then
-        CODEVM_PACK_BUILD=$1
-        CODEVM_PACK_VERSION="latest"
+        PACK_BUILD=$1
+        PACK_VERSION="latest"
     else
-        CODEVM_PACK_BUILD="stable"
-        CODEVM_PACK_VERSION=$1
+        PACK_BUILD="stable"
+        PACK_VERSION=$1
     fi
 
-    PACK_DIR="$HOME/vscode_versions/$(printf '%x' "$(date +%s)")"
+    PACK_DIR="$DIR/$(printf '%x' "$(date +%s)")"
 
-    echo "Build: $CODEVM_PACK_BUILD"
-    echo "Version: $CODEVM_PACK_VERSION"
+    printf "Build: %s\n" "$PACK_BUILD"
+    printf "Version: %s\n" "$PACK_VERSION"
 }
 
-initialize
+fetch_list() {
+    newest_version=$( wget -O- "https://code.visualstudio.com/sha" 2> /dev/null | grep -Eo "1\.[0-9]{1,2}\.[0-9]" | head -1 | cut -d "." -f 2 & )
+    [ -z "$newest_version" ] && { printf "\033[92mCouldn't fetch any data - exiting\033[00m"; exit; }
+
+    # From 1.0.0 -> 1.newest.0
+    for minor in $( seq 0 "$newest_version" ); do
+        link="https://update.code.visualstudio.com/api/versions/1.$minor.0/linux-x64/stable"
+        wget -O- "$link" 2> /dev/null | grep -Eo "1\.[0-9]{1,2}\.[0-9]" | head -1 >> "$DIR"/list.txt &
+    done
+}
 
 case $1 in
-    'docs')
-        printf "\n      Opening %s \n" "$CODEVM_DOCS_URL"
-        xdg-open "$CODEVM_DOCS_URL" &;;
-
-    'summary') # View current version
-        printf "\n      Opening %s \n" "$CODEVM_CURRENT_URL"
-        xdg-open "$CODEVM_CURRENT_URL" &;;
-
-    'download' | '-d') # Download specific version
+    'download')
         verify_version "$2" && download_package && download_json && compare_hash
         ;;
 
-    'install' | '-i') # Download and install specific verion (get & in-stall)
+    'install')
         verify_version "$2" && download_package && download_json && compare_hash && install_package
         ;;
 
-    'add') # Add to $PATH
-        echo "Adding to path:"
-        (set -x; sudo cp "$0" $INSTALL_PATH) || exit 4
-        exit 0;;
-
-    'remove') # Remove from $PATH
-        (set -x; sudo rm -i $INSTALL_PATH) || exit 4
-        exit 0;;
-
-    'fetch') # List all available versions (stable for now)
-        LATEST_VERSION=$(wget -O- "https://code.visualstudio.com/sha" 2> /dev/null | grep -Eo "1\.[0-9]{1,2}\.[0-9]" | head -1 | cut -d "." -f 2 &)
-        [ -z "$LATEST_VERSION" ] && exit
-
-        for minor in $(seq 0 "$LATEST_VERSION"); do
-            wget -O- "https://update.code.visualstudio.com/api/versions/1.$minor.0/linux-x64/stable" 2> /dev/null | grep -Eo "1\.[0-9]{1,2}\.[0-9]" | head -1 >> "$CODEVM_DIR"/list.txt &
-        done
-
-        echo "List saved at $CODEVM_DIR/list.txt"
+    'add')
+        (set -x; sudo cp -iv "$0" $INSTALL_PATH) || exit 4
         ;;
 
-    'list' | '-l')
-        [ -e "$HOME"/vscode_versions/list.txt ] &&
-        sort -t '.' -k 2n  "$HOME"/vscode_versions/list.txt ||
-        echo "'list.txt' file not found. Use: codevm fetch to create one"
+    'remove')
+        (set -x; sudo rm -iv $INSTALL_PATH) || exit 4
+        ;;
+
+    'fetch')
+        printf "Fetching data..."
+        fetch_list
+        printf "List saved at %s/list.txt" "$DIR"
+        ;;
+
+    'list')
+        [ -e "$DIR/list.txt" ] && {
+            sort -t. -k 1,1n -k 2,2n -k 3,3n "/home/adam/.local/codevm/list.txt"
+        } || {
+            echo "'list.txt' file not found. Use: 'codevm fetch' to create one"
+        }
         ;;
 
     '' | '-h' | '--help')
-        echo "CodeVM - VsCode Version Manager (v$CODEVM_VERSION)
+        printf "CodeVM - VsCode Version Manager (v%s)
         Usage: 
-            codevm [Action] [Options]
+            codevm [Command] [Option]
             
-        Actions:
+        Commands:
             add
-                    Copies the program to path
+                    Copy this program to \$PATH.
 
             remove
-                    Deletes the program from path
+                    Delete this program from \$PATH.
 
-            download/-d <stable/insider/x.x.x>
-                    Get the specified version of vscode.
-                    Example x.x.x variant - 1.0.0
+            download     <stable/insider/X.X.X>
+                    Download a specified version of vscode.
+                    X.X.X - specific version number, e.g. 1.0.0
 
-            install/-i <stable/insider/x.x.x>
-                    Same as downloading. Installs the package to the system
+            install      <stable/insider/X.X.X>
+                    Same as above plus installs the package.
 
             fetch
                     Get the list of available vscode versions.
+                    By default it is saved in ~/.local/codevm/versions-list.txt
 
             list
-                    Doesn't work without fetch's list. It shows it.
-            
-            docs
-                    Link to the vscode documentation.
-
-            summ
-                    Link to the vscode summary page.
-
-            ";;
+                    Works after the 'fetch' command was run.  
+                    List available vscode versions.
+        
+        Options:
+            -h | --help
+                    Show this help.
+                
+            -v | --version
+                    Show package version.
+            "   "$VERSION"
+        ;;
 
     '-v' | '--version')
-        echo "codevm v$CODEVM_VERSION";;
+        printf "codevm v%s" "$VERSION"
+        ;;
 
     *)
-        echo "Wrong arguments given: $*
-        Type: codevm [-h|--help] to see available options";;
+        printf "\033[91mWrong arguments given:\033[00m $* \n
+        Type: codevm [-h|--help] to see available options\n"
+        ;;
 esac

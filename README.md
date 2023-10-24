@@ -1,6 +1,6 @@
 # VSCODE VERSION MANAGER
 
-![CODEVM logo](./codevm-smaller.svg)
+![CODEVM logo](./logo.svg)
 
 Any vscode on any \*nix
 
