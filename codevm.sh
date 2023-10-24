@@ -1,7 +1,6 @@
 #!/usr/bin/sh
 
 VERSION="0.1.0"
-CURRENT_URL="https://code.visualstudio.com/updates"
 INSTALL_PATH="/usr/bin/codevm"
 DIR="$HOME/.local/codevm"
 
